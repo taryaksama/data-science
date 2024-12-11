@@ -1,0 +1,12 @@
+Feature,Median,Mean,Standard Deviation
+Perimeter_PIX,112.28,119.2,26.12
+Surface_area_PIX^2,610.0,653.35,173.51
+Convex_hull_area_PIX^2,643.0,696.99,198.14
+Solidity,0.95,0.94,0.02
+Length_PIX,46.87,50.09,12.41
+Ellipse_major_axis_PIX,41.18,44.09,11.25
+Width_PIX,13.04,12.86,1.1
+Ellipse_minor_axis_PIX,12.97,13.01,0.59
+Aspect_ratio,3.59,3.98,1.28
+Ellipse_aspect_ratio,3.2,3.38,0.78
+Mean_intensity,5487.28,5509.42,169.1

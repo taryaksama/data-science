@@ -1,0 +1,12 @@
+Feature,Median,Mean,Standard Deviation
+Perimeter_MICRON,6.83,7.03,1.25
+Surface_area_MICRON^2,2.36,2.47,0.54
+Convex_hull_area_MICRON^2,2.49,2.62,0.61
+Solidity,0.95,0.95,0.02
+Length_MICRON,2.82,2.91,0.6
+Ellipse_major_axis_MICRON,2.46,2.54,0.54
+Width_MICRON,0.85,0.86,0.06
+Ellipse_minor_axis_MICRON,0.84,0.85,0.03
+Aspect_ratio,3.28,3.44,0.92
+Ellipse_aspect_ratio,2.94,2.99,0.58
+Mean_intensity,5531.04,5560.54,158.79
