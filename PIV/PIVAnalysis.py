@@ -6,30 +6,37 @@ Created on Wed Jan 22 15:57:22 2025
 @author: Laure
 """
 
-# Import packages
+# Import General packages
 import os
 from pathlib import Path
-import pims
+from tqdm import tqdm
+
+# Import Calculation packages
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 
 # Import Images and OpenPIV methods
+import imageio.v2 as imageio
 from openpiv import tools, pyprocess, validation, filters, scaling
-import imageio
-import importlib_resources
-from matplotlib.widgets import Slider
+# from matplotlib.widgets import Slider
 
 # Get datasets directory
-folderPath = Path.cwd().parent.parent / 'datasets' / 'piv'
+folderPath = Path.cwd().parent.parent / 'datasets' / 'piv' / 'background_subtracted_trial' 
 fileList = os.listdir(folderPath)
 
 # Read image
 i = 0
-imagePath = 'folderPath' + fileList[i]
-frames = pims.open(imagePath)
-plt.imshow(frames[0], cmap='gray') #show first frame of the film
+imagePath = folderPath / fileList[i]
+frames = imageio.imread(imagePath)
+
+def adjustContrast(image):
+    min_val = np.min(image)
+    max_val = np.max(image)
+    
+    adjusted_image = 255 * (image-min_val) / (max_val-min_val)
+    adjusted_image = adjusted_image.astype(np.uint8)
+    
+    return adjusted_image
 
 # Parameters for PIV
 # -- Pre-processing
@@ -41,12 +48,9 @@ pxtomm = 9 # pixels/millimeter
 # -- Post-processing
 s2nThreshold = 1.05 # AU, signal-to-noise threshold to remove false values
 
-
 # Function: Run PIV on 2 successive images
 def pivImageToImage(_frame_a, _frame_b, _winsize, _searchsize, _overlap, _dt, _pxtomm, _s2nThreshold):
-	"""
-	TBD
-	"""
+
 
 	# --- Pre-processing ---
 	# Get the x-axis & y-axis speed together with a signal-to-noise ratio indicating how confident we are in the calculated direction
@@ -70,7 +74,8 @@ def pivImageToImage(_frame_a, _frame_b, _winsize, _searchsize, _overlap, _dt, _p
 	# --- Post-processing ---
 	# Create a mask to remove low signal-to-noise values
 	invalid_mask = validation.sig2noise_val(
-	    sig2noise,
+	    u0, v0,
+        s2n=sig2noise,
 	    threshold=_s2nThreshold,
 	)
 
@@ -86,64 +91,65 @@ def pivImageToImage(_frame_a, _frame_b, _winsize, _searchsize, _overlap, _dt, _p
 	# Set correct coordinates and units
 	x, y, u3, v3 = scaling.uniform(
 	    x, y, u2, v2,
-	    scaling_factor=_pxtomm,  
+	    scaling_factor=1,  
 	)
 
 	# 0,0 shall be bottom left, positive rotation rate is counterclockwise
 	x, y, u3, v3 = tools.transform_coordinates(x, y, u3, v3)
 
-	# Save as image
-	# Display result 
-	#fig, ax = plt.subplots(figsize=(8,8))
-	#tools.display_vector_field(
-	#    pathlib.Path('exp1_001.txt'), # @dev this line should be changed following saving method
-	#    ax=ax, scaling_factor=pxtomm,
-	#    scale=50, # scale defines here the arrow length
-	#    width=0.0035, # width is the thickness of the arrow
-	#    on_img=True, # overlay on the image
-	#    image_name= str(path / 'data'/'test1'/'exp1_001_a.bmp'),
-	#);
-
 	return x, y, u3, v3
 
+def displayPIVFigure(background_image, x_quiver, y_quiver, u_quiver, v_quiver, display=False):
+    fig, ax = plt.subplots(figsize=(8,8))
+    ax.imshow(adjustContrast(background_image), cmap='gray')
+    plt.quiver(x_quiver, y_quiver, u_quiver, v_quiver, color='red')
+
+    if display==True:
+        plt.show()
+    
+    return fig
+
 # Run PIV on the whole video
-x, y, u, v = [], [], [], []
-for t in range(len(frames)-1):
-	x[t], y[t], u[t], v[t] = pivImageToImage(
-		frames[t], 
-		frame_b[t+1], 
-		winsize, 
-		searchsize, 
-		overlap, 
-		dt, 
-		pxtomm, 
-		s2nThreshold
-	)
+T = 6 #@dev, frames.shape[0]
+L = 56 #@dev, to be matched with PIV parameters
+x = np.zeros((T,L,L), dtype=np.int64)
+y = np.zeros((T,L,L), dtype=np.int64)
+u = np.zeros((T,L,L), dtype=np.int64)
+v = np.zeros((T,L,L), dtype=np.int64)
 
-	# save film
-	# save array
-piv_stack
+for t in tqdm(range(T-1)):
+    x[t,:,:], y[t,:,:], u[t,:,:], v[t,:,:] = pivImageToImage(
+        frames[t,:,:], 
+        frames[t+1,:,:], 
+        winsize,
+        searchsize, 
+    	overlap, 
+    	dt, 
+    	pxtomm, 
+    	s2nThreshold
+        )
+    background_image = frames[t,:,:]
+    displayPIVFigure(background_image, x[t,:,:], y[t,:,:], u[t,:,:], v[t,:,:], display=False)
+    plt.close()
 
-# Display with a Slider
-# Create figure and axis
-fig, ax = plt.subplots()
-plt.subplots_adjust(bottom=0.2)  # Space for slider
-img_display = ax.imshow(piv_stack[0], cmap='gray')
-ax.set_title("PIV Image Viewer")
 
-# Create slider
-ax_slider = plt.axes([0.2, 0.05, 0.65, 0.03])
-slider = Slider(ax_slider, 'Frame', 0, len(piv_stack) - 1, valinit=0, valstep=1)
 
-# Update function
-def update(val):
-    frame = int(slider.val)
-    img_display.set_data(piv_stack[frame])
-    ax.set_title(f"PIV Image {frame+1}")
-    fig.canvas.draw_idle()
+# Analysis of flow
 
-slider.on_changed(update)
-plt.show()
+# orientation
+# theta = atan(v/u)
 
-# Analysis
+# gradients of flow
+# du_dx = np.gradient(u, x, axis=1)  # ∂u/∂x
+# du_dy = np.gradient(u, x, axis=0)  # ∂u/∂y
+# dv_dx = np.gradient(v, y, axis=1)  # ∂v/∂x
+# dv_dy = np.gradient(v, y, axis=0)  # ∂v/∂y
 
+# divergence
+# div = ∂u/∂x + ∂v/∂y
+
+# vorticity
+# w = ∂v/∂x - ∂u/∂y
+
+# mean values on 2D map over the course of the film
+# np.mean(div, axis=2)
