@@ -6,6 +6,8 @@ Created on Wed Jan 22 15:57:22 2025
 @author: Laure
 """
 
+#%% Import Packages
+
 # Import General packages
 import os
 from pathlib import Path
@@ -18,7 +20,10 @@ import matplotlib.pyplot as plt
 # Import Images and OpenPIV methods
 import imageio.v2 as imageio
 from openpiv import tools, pyprocess, validation, filters, scaling
+from matplotlib.colors import CenteredNorm
 # from matplotlib.widgets import Slider
+
+#%% Run PIV
 
 # Get datasets directory
 folderPath = Path.cwd().parent.parent / 'datasets' / 'piv' / 'background_subtracted_trial' 
@@ -50,7 +55,6 @@ s2nThreshold = 1.05 # AU, signal-to-noise threshold to remove false values
 
 # Function: Run PIV on 2 successive images
 def pivImageToImage(_frame_a, _frame_b, _winsize, _searchsize, _overlap, _dt, _pxtomm, _s2nThreshold):
-
 
 	# --- Pre-processing ---
 	# Get the x-axis & y-axis speed together with a signal-to-noise ratio indicating how confident we are in the calculated direction
@@ -110,15 +114,10 @@ def displayPIVFigure(background_image, x_quiver, y_quiver, u_quiver, v_quiver, d
     return fig
 
 # Run PIV on the whole video
-T = 6 #@dev, frames.shape[0]
-L = 56 #@dev, to be matched with PIV parameters
-x = np.zeros((T,L,L), dtype=np.int64)
-y = np.zeros((T,L,L), dtype=np.int64)
-u = np.zeros((T,L,L), dtype=np.int64)
-v = np.zeros((T,L,L), dtype=np.int64)
-
+T = frames.shape[0]    
+x, y, u, v = [], [], [], []
 for t in tqdm(range(T-1)):
-    x[t,:,:], y[t,:,:], u[t,:,:], v[t,:,:] = pivImageToImage(
+    _x, _y, _u, _v = pivImageToImage(
         frames[t,:,:], 
         frames[t+1,:,:], 
         winsize,
@@ -128,28 +127,70 @@ for t in tqdm(range(T-1)):
     	pxtomm, 
     	s2nThreshold
         )
-    background_image = frames[t,:,:]
-    displayPIVFigure(background_image, x[t,:,:], y[t,:,:], u[t,:,:], v[t,:,:], display=False)
+    
+    x.append(_x)
+    y.append(_y)
+    u.append(_u)
+    v.append(_v)
+    
+    displayPIVFigure(frames[t,:,:], _x, _y, _u, _v, display=False)
     plt.close()
 
+x = np.array(x)
+y = np.array(y)
+u = np.array(u)
+v = np.array(v)
 
+#%% Analysis of flow
 
-# Analysis of flow
-
-# orientation
-# theta = atan(v/u)
+# norm
+def computeNorm(u, v):
+    norm = np.sqrt(u**2 + v**2)
+    return norm
 
 # gradients of flow
-# du_dx = np.gradient(u, x, axis=1)  # ∂u/∂x
-# du_dy = np.gradient(u, x, axis=0)  # ∂u/∂y
-# dv_dx = np.gradient(v, y, axis=1)  # ∂v/∂x
-# dv_dy = np.gradient(v, y, axis=0)  # ∂v/∂y
+def computeDivergenceMap(x, y, u, v):
+    du_dx = np.gradient(u, x, axis=1)  # ∂u/∂x
+    dv_dy = np.gradient(v, y, axis=0)  # ∂v/∂y
+    div = du_dx + dv_dy
+    return div
 
-# divergence
-# div = ∂u/∂x + ∂v/∂y
+def computeVorticityMap(x, y, u, v):
+    dv_dx = np.gradient(v, x, axis=1)  # ∂u/∂x
+    du_dy = np.gradient(u, y, axis=0)  # ∂v/∂y
+    w = dv_dx - du_dy
+    return w
 
-# vorticity
-# w = ∂v/∂x - ∂u/∂y
+flow_norm, flow_divergence, flow_vorticity = [], [], []
+for t in tqdm(range(T-1)):
+    norm = computeNorm(u[t,:,:], v[t,:,:])
+    div = computeDivergenceMap(x[t,0,:], y[t,:,0], u[t,:,:], v[t,:,:])
+    w = computeVorticityMap(x[t,0,:], y[t,:,0], u[t,:,:], v[t,:,:])
+    
+    flow_norm.append(norm)
+    flow_divergence.append(div)
+    flow_vorticity.append(w)
 
-# mean values on 2D map over the course of the film
-# np.mean(div, axis=2)
+flowNorm = np.array(flow_norm)
+flowDivergence = np.array(flow_divergence)
+flowVorticity = np.array(flow_vorticity)
+
+# Median values on 2D map over the course of the film
+fig, ax = plt.subplots(1, 3, figsize=(15,5))
+meanFlowNorm = np.median(flowNorm, axis=0)
+im0 = ax[0].imshow(meanFlowNorm, cmap='viridis')
+ax[0].set_title('Median Flow Norm')
+plt.colorbar(im0, ax=ax[0])
+
+meanFlowDivergence = np.median(flowDivergence, axis=0)
+im1 = ax[1].imshow(meanFlowDivergence, cmap='bwr', norm=CenteredNorm())
+ax[1].set_title('Median Flow Divergence')
+plt.colorbar(im1, ax=ax[1])
+
+meanFlowVorticity = np.median(flowVorticity, axis=0)
+im2 = ax[2].imshow(meanFlowVorticity, cmap='bwr', norm=CenteredNorm())
+ax[2].set_title('Median Flow Vorticity')
+plt.colorbar(im2, ax=ax[2])
+
+plt.tight_layout()
+plt.show()
