@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt
 
 # Import Images and OpenPIV methods
 import imageio.v2 as imageio
+from PIL import Image
 from openpiv import tools, pyprocess, validation, filters, scaling
 from matplotlib.colors import CenteredNorm
 # from matplotlib.widgets import Slider
@@ -48,13 +49,21 @@ def adjustContrast(image):
 winsize = 32 # pixels, interrogation window size in frame 't'
 searchsize = 38  # pixels, search area size in frame 't+1'
 overlap = 17 # pixels, 50% overlap
-dt = 0.02 # sec, time interval between the two frames
-pxtomm = 9 # pixels/millimeter
+dt = 0.25 # sec, time interval between the two frames
+pxtomm = 2.75 # pixels/micrometers
 # -- Post-processing
 s2nThreshold = 1.05 # AU, signal-to-noise threshold to remove false values
 
 # Function: Run PIV on 2 successive images
-def pivImageToImage(_frame_a, _frame_b, _winsize, _searchsize, _overlap, _dt, _pxtomm, _s2nThreshold):
+def pivImageToImage(
+        _frame_a, 
+        _frame_b, 
+        _winsize, 
+        _searchsize, 
+        _overlap, 
+        _dt, 
+        _pxtomm, 
+        _s2nThreshold):
 
 	# --- Pre-processing ---
 	# Get the x-axis & y-axis speed together with a signal-to-noise ratio indicating how confident we are in the calculated direction
@@ -113,6 +122,9 @@ def displayPIVFigure(background_image, x_quiver, y_quiver, u_quiver, v_quiver, d
     
     return fig
 
+
+stacked_image = []
+
 # Run PIV on the whole video
 T = frames.shape[0]    
 x, y, u, v = [], [], [], []
@@ -135,6 +147,17 @@ for t in tqdm(range(T-1)):
     
     displayPIVFigure(frames[t,:,:], _x, _y, _u, _v, display=False)
     plt.close()
+    
+    # ---- save movie ----
+    fig = displayPIVFigure(frames[t,:,:], _x, _y, _u, _v, display=True)
+    fig.canvas.draw()
+    #img = Image.frombytes('RGB', fig.canvas.get_width_height(), fig.canvas.tostring_rgb())
+    img_array = np.array(fig.canvas.renderer.buffer_rgba())  # Get RGBA buffer
+    img = Image.fromarray(img_array)  # Convert NumPy array to Image
+    stacked_image.append(img)
+    plt.close(fig)
+    
+stacked_image[0].save('multistack.tiff', save_all=True, append_images=stacked_image[1:]) 
 
 x = np.array(x)
 y = np.array(y)
@@ -144,18 +167,18 @@ v = np.array(v)
 #%% Analysis of flow
 
 # norm
-def computeNorm(u, v):
+def computeNorm(u, v): # compute norm of speed vector
     norm = np.sqrt(u**2 + v**2)
     return norm
 
 # gradients of flow
-def computeDivergenceMap(x, y, u, v):
+def computeDivergenceMap(x, y, u, v): # computes divergence ie. if speed goes inward or outward of the zone
     du_dx = np.gradient(u, x, axis=1)  # ∂u/∂x
     dv_dy = np.gradient(v, y, axis=0)  # ∂v/∂y
     div = du_dx + dv_dy
     return div
 
-def computeVorticityMap(x, y, u, v):
+def computeVorticityMap(x, y, u, v): # compute vorticity ie. if speed tends to rotate clockwise/counter-clockwise around zone
     dv_dx = np.gradient(v, x, axis=1)  # ∂u/∂x
     du_dy = np.gradient(u, y, axis=0)  # ∂v/∂y
     w = dv_dx - du_dy
