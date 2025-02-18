@@ -1,5 +1,13 @@
 # src/utils.py
 
+#%% Import Packages
+
+# Import Calculation packages
+import numpy as np
+import matplotlib.pyplot as plt
+
+#%%
+
 def adjust_contrast(image: np.ndarray) -> np.ndarray:
     min_val = np.min(image)
     max_val = np.max(image)

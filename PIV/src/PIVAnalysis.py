@@ -1,10 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Jan 22 15:57:22 2025
-
-@author: Laure
-"""
+# src/PivAnalysis.py
 
 #%% Import Packages
 
@@ -101,7 +95,7 @@ def piv_movie(
         px2um: float, 
         s2n_threshold: float,
         start: int = 0,
-        end: int = movie.shape[0],
+        end: int = None,
         step : int = 1,
         save:bool = False
         ) -> tuple:
@@ -109,6 +103,9 @@ def piv_movie(
     """
     Run PIV on a whole movie
     """
+
+    if end is None:
+        end = movie.shape[0]
 
     # ---- PIV computation over the movie ----
     x, y, u, v = [], [], [], []
@@ -199,12 +196,15 @@ def movie_flow_features(
         u: np.ndarray,
         v: np.ndarray,
         start:int = 0,
-        end:int = movie.shape[0]
+        end:int = None
         ) -> tuple:
 
     """
     Get flow features over the course of the movie
     """
+
+    if end is None:
+        end = u.shape[0]
 
     flow_norm, flow_divergence, flow_vorticity = [], [], []
     for t in tqdm(range(start, end-1)):
