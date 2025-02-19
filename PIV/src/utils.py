@@ -35,6 +35,9 @@ def display_PIV_figure(
     
     return fig
 
+def save_image():
+    ...
+
 def main() -> None:
     adjust_contrast()
     display_PIV_figure()

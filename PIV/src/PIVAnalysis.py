@@ -3,6 +3,8 @@
 #%% Import Packages
 
 # Import General packages
+import os
+from datetime import datetime
 from tqdm import tqdm
 
 # Import Calculation packages
@@ -66,6 +68,10 @@ def piv_image2image(
 	    threshold=s2n_threshold,
 	)
 
+    # Get the filtering ratio
+    mask = invalid_mask[2]
+    filtering_ratio = np.sum(mask) / np.size(mask)
+
 	# Replace outliers with local mean values of 'u' and 'v'
     u2, v2 = filters.replace_outliers(
 	    u0, v0,
@@ -84,7 +90,7 @@ def piv_image2image(
 	# 0,0 shall be bottom left, positive rotation rate is counterclockwise
     x, y, u3, v3 = tools.transform_coordinates(x, y, u3, v3)
 
-    return x, y, u3, v3
+    return x, y, u3, v3, filtering_ratio
 
 def piv_movie(
         movie: np.ndarray,
@@ -97,20 +103,25 @@ def piv_movie(
         start: int = 0,
         end: int = None,
         step : int = 1,
-        save:bool = False
+        save:bool = False,
+        *args, **kwargs
         ) -> tuple:
 
     """
     Run PIV on a whole movie
     """
 
+    # Extract kwargs
+    save_folder = kwargs.get('save_folder', 'results')
+
     if end is None:
         end = movie.shape[0]
 
     # ---- PIV computation over the movie ----
     x, y, u, v = [], [], [], []
+    stacked_image = []
     for t in tqdm(range(start, end-1, step)):
-        _x, _y, _u, _v = piv_image2image(
+        _x, _y, _u, _v, _ = piv_image2image(
             movie[t,:,:], 
             movie[t+1,:,:], 
             windsize,
@@ -125,6 +136,15 @@ def piv_movie(
         y.append(_y)
         u.append(_u)
         v.append(_v)
+
+        # ---- Save PIV results in a multistack TIFF ----
+        if save:
+            fig = display_PIV_figure(movie[t,:,:], _x*px2um, _y*px2um, _u, _v, display=False)
+            fig.canvas.draw()
+            img_array = np.array(fig.canvas.renderer.buffer_rgba())  # Get RGBA buffer
+            img = Image.fromarray(img_array)  # Convert NumPy array to Image
+            stacked_image.append(img)
+            plt.close()
     
     # Modify type of variables
     x = np.array(x)
@@ -132,17 +152,8 @@ def piv_movie(
     u = np.array(u)
     v = np.array(v)
 
-    # ---- Save PIV results in a multistack TIFF ----
-    if save:
-        stacked_image = []
-        with plt.figure() as fig:
-            fig = display_PIV_figure(frames[t,:,:], _x, _y, _u, _v, display=True)
-            fig.canvas.draw()
-            img_array = np.array(fig.canvas.renderer.buffer_rgba())  # Get RGBA buffer
-            img = Image.fromarray(img_array)  # Convert NumPy array to Image
-            stacked_image.append(img)
-        
-        stacked_image[0].save('multistack.tiff', save_all=True, append_images=stacked_image[1:]) 
+    if save:        
+        stacked_image[0].save(save_folder + '/PIV_movie.tiff', save_all=True, append_images=stacked_image[1:]) 
 
     return x, y, u, v
 
