@@ -39,8 +39,8 @@ def piv_image2image(
 	# ---- Pre-processing ----
     # Remove background
     background = (frame_a + frame_b) / 2
-    frame_a_rm_background = frame_a - background
-    frame_b_rm_background = frame_b - background
+    frame_a_rm_background = adjust_contrast(remove_background(frame_a, background, method='divide'))
+    frame_b_rm_background = adjust_contrast(remove_background(frame_b, background, method='divide'))
 
 	# Get the x-axis & y-axis speed together with a signal-to-noise ratio indicating how confident we are in the calculated direction
     u0, v0, sig2noise = pyprocess.extended_search_area_piv(
@@ -232,6 +232,47 @@ def movie_flow_features(
     flow_vorticity = np.array(flow_vorticity)
 
     return flow_norm, flow_divergence, flow_vorticity
+
+def flow_features_mean_map(
+        flow_norm: np.ndarray,
+        flow_divergence: np.ndarray,
+        flow_vorticity: np.ndarray,
+        save: bool = False,
+        *args, **kwargs
+        ) -> tuple:
+    
+    # Extract kwargs
+    save_folder = kwargs.get('save_folder', 'results')
+
+    # Median values on 2D map over the course of the film
+    fig, ax = plt.subplots(1, 3, figsize=(15,5))
+
+    # Norm
+    mean_flow_norm = np.median(flow_norm, axis=0)
+    im0 = ax[0].imshow(mean_flow_norm, cmap='viridis')
+    ax[0].set_title('Median Flow Norm')
+    plt.colorbar(im0, ax=ax[0])
+
+    # Divergence
+    mean_flow_divergence = np.median(flow_divergence, axis=0)
+    im1 = ax[1].imshow(mean_flow_divergence, cmap='bwr', norm=CenteredNorm())
+    ax[1].set_title('Median Flow Divergence')
+    plt.colorbar(im1, ax=ax[1])
+
+    # Vorticity
+    mean_flow_vorticity = np.median(flow_vorticity, axis=0)
+    im2 = ax[2].imshow(mean_flow_vorticity, cmap='bwr', norm=CenteredNorm())
+    ax[2].set_title('Median Flow Vorticity')
+    plt.colorbar(im2, ax=ax[2])
+
+    plt.tight_layout()
+    plt.show()
+
+    if save:
+        plt.savefig(result_folder+ '/mean_flow_features.png')
+    
+    return mean_flow_norm, mean_flow_divergence, mean_flow_vorticity
+        
 
 #%% Main
 def main() -> None:
