@@ -7,6 +7,23 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 #%%
+def select_folder(folder_initial_path:Path = Path.cwd()) -> str:
+    root = tk.Tk()
+    root.withdraw()  # Hide the root window
+    folder_path = filedialog.askdirectory(
+        initialdir=folder_initial_path,
+        title="Select folder")
+    return folder_path
+
+def select_file(folder_initial_path:Path = Path.cwd()) -> str:
+    root = tk.Tk()
+    root.withdraw()  # Hide the root window
+    file_path = filedialog.askopenfilename(
+        initialdir=folder_initial_path,
+        title="Select file",
+        filetypes=(("Image files", "*.png *.jpg *.tif *.tiff *.bmp *gif *webp"), ("All files", "*.*"))
+    )
+    return file_path
 
 def adjust_contrast(image: np.ndarray) -> np.ndarray:
     min_val = np.min(image)
@@ -28,39 +45,11 @@ def remove_background(
     if method == 'subtract':
         return image - background
 
-def display_PIV_figure(
-        image: np.ndarray, 
-        x_quiver: np.ndarray,
-        y_quiver: np.ndarray,
-        u_quiver: np.ndarray,
-        v_quiver: np.ndarray,
-        display: bool = False,
-        display_quiver: bool = True,
-        colormap: str = 'gray',
-        save: bool = False,
-        *args, **kwargs
-        ) -> plt.figure:
-    
-    # Extract kwargs
-    save_folder = kwargs.get('save_folder', 'results')
-    file_name = kwargs.get('file_name', 'figure')
-
-    fig, ax = plt.subplots(figsize=(8,8))
-    ax.imshow(adjust_contrast(image), cmap=colormap)
-    if display_quiver:
-        plt.quiver(x_quiver, y_quiver, u_quiver, v_quiver, color='red')
-
-    if display:
-        plt.show()
-    
-    if save:
-        plt.savefig(result_folder + file_name)
-
-    return fig
-
 def main() -> None:
+    select_folder()
+    select_file()
     adjust_contrast()
-    display_PIV_figure()
+    remove_background()
 
 if __name__ == '__main__':
     main()

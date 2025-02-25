@@ -11,6 +11,36 @@ from matplotlib.colors import CenteredNorm
 
 #%% Functions
 
+def display_PIV_figure(
+        image: np.ndarray, 
+        x_quiver: np.ndarray,
+        y_quiver: np.ndarray,
+        u_quiver: np.ndarray,
+        v_quiver: np.ndarray,
+        display: bool = False,
+        display_quiver: bool = True,
+        colormap: str = 'gray',
+        save: bool = False,
+        *args, **kwargs
+        ) -> plt.figure:
+    
+    # Extract kwargs
+    save_folder = kwargs.get('save_folder', 'results')
+    file_name = kwargs.get('file_name', 'figure')
+
+    fig, ax = plt.subplots(figsize=(8,8))
+    ax.imshow(adjust_contrast(image), cmap=colormap)
+    if display_quiver:
+        plt.quiver(x_quiver, y_quiver, u_quiver, v_quiver, color='red')
+
+    if display:
+        plt.show()
+    
+    if save:
+        plt.savefig(result_folder + file_name)
+
+    return fig
+
 def plot_flow_features_map(
         flow_norm: np.ndarray, 
         flow_divergence: np.ndarray, 
@@ -102,8 +132,9 @@ def plot_movie_flow_map(
     ax.quiver(range(u.shape[1]), range(u.shape[2]), um, vm, color='r')
     cbar = plt.colorbar(im, fraction=0.046, pad=0.04, aspect=20)
     cbar.set_label('Speed norm (um/s)')
+    
     ax.axis('off')
-
+    ax.set_title(f'{result_folder}.split("/")[-1]')
     plt.tight_layout()
 
     if save:
@@ -115,6 +146,7 @@ def plot_movie_flow_map(
 #%% Main
 
 def main():
+    display_PIV_figure()
     plot_flow_features_map()
     plot_flow_features_distribution()
     plot_movie_flow_map()
