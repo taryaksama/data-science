@@ -2,9 +2,15 @@
 
 #%% Import Packages
 
-# Import Calculation packages
+# General
+from pathlib import Path
+
+# Calculation
 import numpy as np
-import matplotlib.pyplot as plt
+
+# GUI
+import tkinter as tk
+from tkinter import filedialog
 
 #%%
 def select_folder(folder_initial_path:Path = Path.cwd()) -> str:

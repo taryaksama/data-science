@@ -2,13 +2,15 @@
 
 #%% Import Packages
 
-## Calculation packages
+# Calculation packages
 import numpy as np
 
-## Graph
+# Graph
 import matplotlib.pyplot as plt
 from matplotlib.colors import CenteredNorm
 
+# Custom
+from utils import *
 #%% Functions
 
 def display_PIV_figure(
